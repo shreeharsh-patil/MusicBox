@@ -126,14 +126,14 @@
 
 /* Glass Card Container */
 .glass-card {
-  --bg-color: rgba(255, 255, 255, 0.25);
+  --bg-color: rgba(255, 255, 255, 0.22);
   --highlight: rgba(255, 255, 255, 0.75);
   --text: #ffffff;
   
   position: relative;
-  border-radius: 20px;
+  border-radius: 24px;
   overflow: hidden;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .glass-filter,
@@ -146,15 +146,15 @@
 
 .glass-filter {
   z-index: 1;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   filter: url(#glass-distortion) saturate(120%) brightness(1.15);
 }
 
 .glass-distortion-overlay {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 20% 30%, rgba(255,255,255,0.05) 0%, transparent 80%),
-              radial-gradient(circle at 80% 70%, rgba(255,255,255,0.05) 0%, transparent 80%);
+  background: radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06) 0%, transparent 80%),
+              radial-gradient(circle at 80% 70%, rgba(255,255,255,0.06) 0%, transparent 80%);
   background-size: 300% 300%;
   animation: floatDistort 10s infinite ease-in-out;
   mix-blend-mode: overlay;
@@ -185,9 +185,16 @@
   color: var(--text);
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar for all devices */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
 .scrollbar-thin::-webkit-scrollbar {
-  width: 0px;
+  width: 5px;
+  height: 5px;
   background: transparent;
 }
 
@@ -196,18 +203,18 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.45);
 }
 
 /* Dark mode styles */
 @media (prefers-color-scheme: dark) {
   .glass-card {
-    --bg-color: rgba(0, 0, 0, 0.25);
+    --bg-color: rgba(0, 0, 0, 0.35);
     --highlight: rgba(255, 255, 255, 0.15);
   }
 }

@@ -10,16 +10,18 @@ import {
   Repeat,
   Star,
   Music2,
-  MoreHorizontal,
   Search,
   X,
   Loader2,
+  ListMusic,
+  Disc3,
+  Sparkles,
 } from "lucide-react"
 import { motion } from "motion/react"
 import { searchSongs, getTrendingSongs, formatDuration, type JioSaavnSong } from "@/lib/jiosaavn"
 import { API_CONFIG } from "@/lib/config"
 
-interface PlaylistItem {
+export interface PlaylistItem {
   id: string
   title: string
   artist: string
@@ -29,7 +31,7 @@ interface PlaylistItem {
   raw?: JioSaavnSong
 }
 
-// Initial playlist from reference component
+// Initial playlist fallback
 const INITIAL_PLAYLIST: PlaylistItem[] = [
   {
     id: "1",
@@ -94,13 +96,15 @@ export default function MusicPlayerUI() {
   const [isRepeatOne, setIsRepeatOne] = useState(false)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
 
+  // Responsive mobile view switcher: "player" | "playlist"
+  const [mobileTab, setMobileTab] = useState<"player" | "playlist">("player")
+
   // Search state
   const [searchQuery, setSearchQuery] = useState("")
   const [isSearching, setIsSearching] = useState(false)
 
   const modalRef = useRef<HTMLDivElement>(null)
   const progressRef = useRef<HTMLDivElement>(null)
-  const barProgressRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const playlistRef = useRef<PlaylistItem[]>(playlist)
@@ -283,7 +287,7 @@ export default function MusicPlayerUI() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  // Mouse move glass distortion physics from reference
+  // Mouse move glass distortion physics
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!modalRef.current) return
@@ -293,7 +297,6 @@ export default function MusicPlayerUI() {
 
       setMousePos({ x, y })
 
-      // Update filter turbulence based on mouse position
       const filter = document.querySelector("#glass-distortion feDisplacementMap")
       if (filter) {
         const scaleX = (x / rect.width) * 100
@@ -320,37 +323,21 @@ export default function MusicPlayerUI() {
     }
   }, [])
 
-  const updateProgressFromRef = (ref: React.RefObject<HTMLDivElement | null>, clientX: number) => {
+  // Touch & Mouse Progress Bar updates
+  const updateProgressFromEvent = (ref: React.RefObject<HTMLDivElement | null>, clientX: number) => {
     if (!ref.current) return
     const rect = ref.current.getBoundingClientRect()
+    if (rect.width <= 0) return
     const x = clientX - rect.left
     const percentage = (x / rect.width) * 100
     const clamped = Math.max(0, Math.min(100, percentage))
     setProgress(clamped)
 
-    if (audioRef.current && audioRef.current.duration) {
+    if (audioRef.current && audioRef.current.duration && !isNaN(audioRef.current.duration)) {
       const targetTime = (clamped / 100) * audioRef.current.duration
       audioRef.current.currentTime = targetTime
       setCurrentTime(targetTime)
     }
-  }
-
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    updateProgressFromRef(progressRef, e.clientX)
-  }
-
-  const handleProgressDrag = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging) return
-    updateProgressFromRef(progressRef, e.clientX)
-  }
-
-  const handleBarProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    updateProgressFromRef(barProgressRef, e.clientX)
-  }
-
-  const handleBarProgressDrag = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging) return
-    updateProgressFromRef(barProgressRef, e.clientX)
   }
 
   const togglePlay = useCallback(async () => {
@@ -412,9 +399,9 @@ export default function MusicPlayerUI() {
     return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
-  const formattedCurrentTime = duration > 0 ? formatTime(currentTime) : "1:01"
+  const formattedCurrentTime = duration > 0 ? formatTime(currentTime) : "0:00"
   const formattedRemainingTime =
-    duration > 0 ? `-${formatTime(Math.max(0, duration - currentTime))}` : "-1:35"
+    duration > 0 ? `-${formatTime(Math.max(0, duration - currentTime))}` : "0:00"
 
   return (
     <>
@@ -432,14 +419,14 @@ export default function MusicPlayerUI() {
 
       <motion.div
         ref={modalRef}
-        className="glass-card relative w-full max-w-4xl h-[500px] rounded-3xl overflow-hidden shadow-2xl"
-        initial={{ opacity: 0, scale: 0.9, y: 50 }}
+        className="glass-card relative w-full max-w-4xl h-[92dvh] max-h-[850px] min-h-[520px] md:h-[550px] lg:h-[580px] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+        initial={{ opacity: 0, scale: 0.95, y: 30 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{
           type: "spring",
           stiffness: 100,
           damping: 15,
-          duration: 0.6,
+          duration: 0.5,
         }}
       >
         {/* Glass Filter Layer */}
@@ -451,9 +438,9 @@ export default function MusicPlayerUI() {
         {/* Glass Overlay */}
         <div className="glass-overlay" />
 
-        {/* Glass Specular */}
+        {/* Glass Specular highlight follows mouse on desktop */}
         <div
-          className="glass-specular"
+          className="glass-specular hidden sm:block"
           style={{
             background: `radial-gradient(
               circle at ${mousePos.x}px ${mousePos.y}px,
@@ -464,31 +451,38 @@ export default function MusicPlayerUI() {
           }}
         />
 
-        {/* Content */}
-        <div className="glass-content relative z-[4] p-8 h-full flex flex-col">
-          {/* Top Bar: Logo + Search */}
-          <div className="flex items-center justify-between gap-4 mb-6 flex-shrink-0">
+        {/* Main Content Container */}
+        <div className="glass-content relative z-[4] p-3.5 sm:p-5 md:p-7 h-full flex flex-col min-h-0">
+          {/* Top Bar: Brand Logo + Search */}
+          <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-4 flex-shrink-0">
             {/* Logo */}
-            <div className="flex items-center gap-2">
-              <Music2 className="w-8 h-8 text-white" />
-              <span className="text-2xl font-bold text-white font-sans">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="p-1.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/20">
+                <Music2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+              <span className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight font-sans">
                 {API_CONFIG.client.appName || "Harmonia"}
               </span>
             </div>
 
             {/* Search Bar */}
-            <div className="relative flex items-center">
-              <div className="relative flex items-center bg-white/10 hover:bg-white/15 focus-within:bg-white/20 backdrop-blur-md rounded-full px-3.5 py-1.5 border border-white/20 focus-within:border-white/40 transition-all w-52 sm:w-64 md:w-72 shadow-inner">
-                <Search className="w-4 h-4 text-white/70 mr-2 flex-shrink-0" />
+            <div className="relative flex-1 max-w-[200px] xs:max-w-[240px] sm:max-w-xs md:max-w-xs">
+              <div className="relative flex items-center bg-white/10 hover:bg-white/15 focus-within:bg-white/20 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/20 focus-within:border-white/40 transition-all shadow-inner">
+                <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/70 mr-1.5 sm:mr-2 flex-shrink-0" />
                 <input
                   type="text"
-                  placeholder="Search songs, artists..."
+                  placeholder="Search songs..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    if (e.target.value && mobileTab !== "playlist") {
+                      setMobileTab("playlist")
+                    }
+                  }}
                   className="bg-transparent text-xs text-white placeholder-white/50 outline-none w-full pr-5"
                 />
                 {isSearching ? (
-                  <Loader2 className="w-3.5 h-3.5 text-white/70 animate-spin absolute right-3" />
+                  <Loader2 className="w-3.5 h-3.5 text-white/70 animate-spin absolute right-2.5" />
                 ) : searchQuery ? (
                   <button
                     onClick={() => {
@@ -499,7 +493,7 @@ export default function MusicPlayerUI() {
                         loadTrending()
                       }
                     }}
-                    className="text-white/60 hover:text-white absolute right-3 cursor-pointer"
+                    className="text-white/60 hover:text-white absolute right-2.5 cursor-pointer p-0.5"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -508,320 +502,372 @@ export default function MusicPlayerUI() {
             </div>
           </div>
 
-          {/* Main Content */}
-          <div className="flex gap-8 flex-1 overflow-hidden">
-            {/* Left Side - Album Art and Controls */}
-            <div className="flex flex-col justify-between w-[320px]">
-              {/* Album Art */}
-              <motion.div
-                className="bg-black/40 rounded-2xl p-3 backdrop-blur-sm w-[290px] mx-auto"
-                initial={{ opacity: 0, scale: 0.8, rotateY: -15 }}
-                animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-                transition={{
-                  type: "spring",
-                  stiffness: 120,
-                  damping: 12,
-                  delay: 0.2,
-                }}
-              >
-                <motion.img
-                  key={currentSong?.id || "art"}
-                  src={currentSong?.cover || "/music-1.jpg"}
-                  alt="Album Art"
-                  className="w-full aspect-square object-cover rounded-lg"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.4, duration: 0.5 }}
-                  onError={(e) => {
-                    ;(e.target as HTMLImageElement).src = "/music-1.jpg"
-                  }}
-                />
-              </motion.div>
+          {/* Mobile Segmented Tab Switcher (Visible on small screens < md) */}
+          <div className="flex md:hidden items-center justify-between p-1 bg-white/10 backdrop-blur-md rounded-xl mb-3 flex-shrink-0 border border-white/15">
+            <button
+              onClick={() => setMobileTab("player")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                mobileTab === "player"
+                  ? "bg-white text-black shadow-md font-bold"
+                  : "text-white/75 hover:text-white"
+              }`}
+            >
+              <Disc3 className={`w-3.5 h-3.5 ${isPlaying && mobileTab === "player" ? "animate-spin" : ""}`} />
+              <span>Now Playing</span>
+            </button>
+            <button
+              onClick={() => setMobileTab("playlist")}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                mobileTab === "playlist"
+                  ? "bg-white text-black shadow-md font-bold"
+                  : "text-white/75 hover:text-white"
+              }`}
+            >
+              <ListMusic className="w-3.5 h-3.5" />
+              <span>Queue ({playlist.length})</span>
+            </button>
+          </div>
 
-              {/* Player Controls */}
+          {/* Body Content */}
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col md:flex-row md:gap-6 lg:gap-8">
+            {/* LEFT / NOW PLAYING SECTION */}
+            <div
+              className={`flex-col justify-between flex-1 md:flex-initial md:w-[290px] lg:w-[320px] min-h-0 ${
+                mobileTab === "player" ? "flex" : "hidden md:flex"
+              }`}
+            >
+              {/* Album Art Container */}
+              <div className="flex-1 flex items-center justify-center min-h-0 py-1">
+                <motion.div
+                  className="bg-black/40 rounded-2xl p-2.5 sm:p-3 backdrop-blur-sm w-full max-w-[210px] xs:max-w-[240px] sm:max-w-[270px] md:max-w-full shadow-lg border border-white/10 relative group"
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 120,
+                    damping: 14,
+                    delay: 0.1,
+                  }}
+                >
+                  <motion.img
+                    key={currentSong?.id || "art"}
+                    src={currentSong?.cover || "/music-1.jpg"}
+                    alt={currentSong?.title || "Album Art"}
+                    className="w-full aspect-square object-cover rounded-xl shadow-md"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.35 }}
+                    onError={(e) => {
+                      ;(e.target as HTMLImageElement).src = "/music-1.jpg"
+                    }}
+                  />
+                  {/* Subtle live pulsating glow when playing */}
+                  {isPlaying && (
+                    <div className="absolute inset-0 rounded-2xl ring-2 ring-white/30 animate-pulse pointer-events-none" />
+                  )}
+                </motion.div>
+              </div>
+
+              {/* Player Controls Panel */}
               <motion.div
-                className="bg-white/10 backdrop-blur-md rounded-2xl p-4 mt-4"
-                initial={{ opacity: 0, y: 30 }}
+                className="bg-white/10 backdrop-blur-md rounded-2xl p-3.5 sm:p-4 mt-2 sm:mt-3 border border-white/15 shadow-xl flex-shrink-0"
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
                   type: "spring",
                   stiffness: 100,
                   damping: 15,
-                  delay: 0.3,
+                  delay: 0.2,
                 }}
               >
                 {/* Song Info */}
-                <div className="text-white mb-3">
-                  <h3 className="font-semibold text-sm truncate">
-                    {currentSong ? `${currentSong.title} - ${currentSong.artist}` : "Die With a Smile - Lady Gaga & Bruno Mars"}
-                  </h3>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-white text-xs font-medium">{formattedCurrentTime}</span>
-                  <div
-                    ref={progressRef}
-                    className="flex-1 h-1 bg-white/30 rounded-full cursor-pointer relative group"
-                    onClick={handleProgressClick}
-                    onMouseDown={() => setIsDragging(true)}
-                    onMouseUp={() => setIsDragging(false)}
-                    onMouseMove={handleProgressDrag}
-                    onMouseLeave={() => setIsDragging(false)}
-                  >
-                    <div
-                      className="h-full bg-white rounded-full transition-all"
-                      style={{ width: `${progress}%` }}
-                    />
-                    <div
-                      className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{ left: `${progress}%`, transform: "translate(-50%, -50%)" }}
-                    />
+                <div className="text-white mb-2.5 flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-sm sm:text-base truncate leading-tight">
+                      {currentSong?.title || "Harmonia Track"}
+                    </h3>
+                    <p className="text-xs text-white/70 truncate mt-0.5 font-medium">
+                      {currentSong?.artist || "Unknown Artist"}
+                    </p>
                   </div>
-                  <span className="text-white text-xs font-medium">{formattedRemainingTime}</span>
-                </div>
-
-                {/* Control Buttons */}
-                <div className="flex items-center justify-between">
                   <motion.button
                     onClick={() => currentSong && toggleFavorite(currentSong.id)}
-                    className="text-white cursor-pointer"
-                    whileHover={{ scale: 1.1, rotate: 15 }}
+                    className="text-white p-1 rounded-full hover:bg-white/10 cursor-pointer flex-shrink-0"
+                    whileHover={{ scale: 1.15, rotate: 12 }}
                     whileTap={{ scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    aria-label="Favorite"
                   >
                     <Star
-                      className={`w-5 h-5 ${
+                      className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors ${
                         currentSong && favorites.has(currentSong.id)
                           ? "fill-yellow-400 text-yellow-400"
-                          : ""
+                          : "text-white/70 hover:text-white"
                       }`}
                     />
                   </motion.button>
-                  <motion.button
-                    onClick={playPrev}
-                    className="text-white cursor-pointer"
-                    whileHover={{ scale: 1.1, x: -2 }}
-                    whileTap={{ scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                </div>
+
+                {/* Progress Bar (Touch & Mouse Draggable) */}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-white/80 text-[11px] font-mono w-8 text-left">
+                    {formattedCurrentTime}
+                  </span>
+                  <div
+                    ref={progressRef}
+                    className="flex-1 h-3 flex items-center cursor-pointer relative group touch-none select-none"
+                    onClick={(e) => updateProgressFromEvent(progressRef, e.clientX)}
+                    onMouseDown={(e) => {
+                      setIsDragging(true)
+                      updateProgressFromEvent(progressRef, e.clientX)
+                    }}
+                    onMouseMove={(e) => {
+                      if (isDragging) updateProgressFromEvent(progressRef, e.clientX)
+                    }}
+                    onMouseUp={() => setIsDragging(false)}
+                    onMouseLeave={() => setIsDragging(false)}
+                    onTouchStart={(e) => {
+                      setIsDragging(true)
+                      if (e.touches[0]) updateProgressFromEvent(progressRef, e.touches[0].clientX)
+                    }}
+                    onTouchMove={(e) => {
+                      if (isDragging && e.touches[0])
+                        updateProgressFromEvent(progressRef, e.touches[0].clientX)
+                    }}
+                    onTouchEnd={() => setIsDragging(false)}
                   >
-                    <SkipBack className="w-5 h-5" />
-                  </motion.button>
-                  <motion.button
-                    onClick={togglePlay}
-                    className="bg-white text-black rounded-full p-2 cursor-pointer"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  >
-                    <motion.div animate={{ rotate: isPlaying ? 360 : 0 }} transition={{ duration: 0.3 }}>
-                      {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
-                    </motion.div>
-                  </motion.button>
-                  <motion.button
-                    onClick={playNext}
-                    className="text-white cursor-pointer"
-                    whileHover={{ scale: 1.1, x: 2 }}
-                    whileTap={{ scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  >
-                    <SkipForward className="w-5 h-5" />
-                  </motion.button>
+                    <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-white rounded-full transition-all"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    {/* Scrub Thumb */}
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-md border border-black/10 transition-transform group-hover:scale-125"
+                      style={{ left: `${progress}%`, transform: "translate(-50%, -50%)" }}
+                    />
+                  </div>
+                  <span className="text-white/80 text-[11px] font-mono w-8 text-right">
+                    {formattedRemainingTime}
+                  </span>
+                </div>
+
+                {/* Playback Control Buttons */}
+                <div className="flex items-center justify-between px-1">
                   <motion.button
                     onClick={() => setIsRepeatOne((prev) => !prev)}
-                    className={`text-white transition-colors cursor-pointer ${
-                      isRepeatOne ? "text-green-400" : ""
+                    className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer ${
+                      isRepeatOne ? "text-green-400 bg-white/10" : "text-white/70 hover:text-white"
                     }`}
-                    whileHover={{ scale: 1.1, rotate: -15 }}
+                    whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                    title={isRepeatOne ? "Repeat One" : "Repeat All"}
+                    title={isRepeatOne ? "Repeat One Enabled" : "Repeat All"}
+                    aria-label="Repeat mode"
                   >
-                    <Repeat className="w-5 h-5" />
+                    <Repeat className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
                   </motion.button>
+
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <motion.button
+                      onClick={playPrev}
+                      className="text-white/90 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all cursor-pointer"
+                      whileHover={{ scale: 1.1, x: -2 }}
+                      whileTap={{ scale: 0.9 }}
+                      aria-label="Previous Track"
+                    >
+                      <SkipBack className="w-5 h-5 sm:w-5 sm:h-5" />
+                    </motion.button>
+
+                    <motion.button
+                      onClick={togglePlay}
+                      className="bg-white text-black rounded-full p-3 shadow-lg hover:bg-white/90 transition-transform cursor-pointer flex items-center justify-center"
+                      whileHover={{ scale: 1.08 }}
+                      whileTap={{ scale: 0.92 }}
+                      aria-label={isPlaying ? "Pause" : "Play"}
+                    >
+                      {isPlaying ? (
+                        <Pause className="w-5 h-5 fill-black" />
+                      ) : (
+                        <Play className="w-5 h-5 fill-black ml-0.5" />
+                      )}
+                    </motion.button>
+
+                    <motion.button
+                      onClick={playNext}
+                      className="text-white/90 hover:text-white p-2 rounded-full hover:bg-white/10 transition-all cursor-pointer"
+                      whileHover={{ scale: 1.1, x: 2 }}
+                      whileTap={{ scale: 0.9 }}
+                      aria-label="Next Track"
+                    >
+                      <SkipForward className="w-5 h-5 sm:w-5 sm:h-5" />
+                    </motion.button>
+                  </div>
+
+                  {/* View queue shortcut for mobile or extra options */}
+                  <motion.button
+                    onClick={() => setMobileTab("playlist")}
+                    className="md:hidden text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 cursor-pointer"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    title="View Queue"
+                    aria-label="View Queue"
+                  >
+                    <ListMusic className="w-4 h-4" />
+                  </motion.button>
+
+                  <div className="hidden md:block w-8" />
                 </div>
               </motion.div>
             </div>
 
-            {/* Right Side - Playlist */}
-            <motion.div
-              className="flex-1 overflow-hidden flex flex-col"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{
-                type: "spring",
-                stiffness: 100,
-                damping: 15,
-                delay: 0.4,
-              }}
+            {/* RIGHT / PLAYLIST SECTION */}
+            <div
+              className={`flex-1 min-w-0 flex-col overflow-hidden ${
+                mobileTab === "playlist" ? "flex" : "hidden md:flex"
+              }`}
             >
-              {searchQuery && (
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 flex-shrink-0">
-                  <span className="text-xs text-white/80 font-medium">
-                    Search Results for &quot;{searchQuery}&quot; ({playlist.length})
+              {/* Header / Search results banner */}
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/15 flex-shrink-0">
+                <div className="flex items-center gap-1.5 text-xs text-white/90 font-semibold truncate">
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-300 flex-shrink-0" />
+                  <span className="truncate">
+                    {searchQuery
+                      ? `Search: "${searchQuery}" (${playlist.length})`
+                      : `Trending Charts (${playlist.length})`}
                   </span>
+                </div>
+                {searchQuery && (
                   <button
                     onClick={() => {
                       setSearchQuery("")
                       if (trendingPlaylist.length > 0) setPlaylist(trendingPlaylist)
                     }}
-                    className="text-[11px] text-white/70 hover:text-white underline cursor-pointer"
+                    className="text-[11px] text-white/80 hover:text-white underline cursor-pointer flex-shrink-0 ml-2"
                   >
-                    Back to Trending
+                    Clear Search
                   </button>
-                </div>
-              )}
+                )}
+              </div>
 
-              <div className="h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
-                <div className="space-y-2">
-                  {playlist.map((song, index) => {
+              {/* Scrollable Song List */}
+              <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 scrollbar-thin space-y-1.5 sm:space-y-2 min-h-0">
+                {playlist.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-white/60">
+                    <Music2 className="w-10 h-10 mb-2 opacity-50" />
+                    <p className="text-sm">No tracks found</p>
+                    <p className="text-xs text-white/40 mt-1">Try searching for a different song or artist</p>
+                  </div>
+                ) : (
+                  playlist.map((song, index) => {
                     const isCurrent = index === currentIndex
                     return (
                       <motion.div
                         key={`${song.id}-${index}`}
-                        className={`flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer group ${
-                          isCurrent ? "bg-white/20" : "hover:bg-white/10"
+                        className={`flex items-center gap-2.5 sm:gap-3 p-2 sm:p-2.5 rounded-xl transition-all cursor-pointer group ${
+                          isCurrent
+                            ? "bg-white/25 shadow-md border border-white/30 backdrop-blur-sm"
+                            : "hover:bg-white/10 active:bg-white/15 border border-transparent"
                         }`}
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 15 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{
                           type: "spring",
-                          stiffness: 100,
+                          stiffness: 120,
                           damping: 15,
-                          delay: 0.5 + index * 0.05,
+                          delay: Math.min(0.3, index * 0.03),
                         }}
-                        whileHover={{ scale: 1.02, x: 5 }}
+                        whileHover={{ scale: 1.01, x: 3 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => selectSong(index)}
+                        onClick={() => {
+                          selectSong(index)
+                        }}
                       >
-                        <motion.img
-                          src={song.cover || "/placeholder.svg"}
-                          alt={song.title}
-                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                          whileHover={{ scale: 1.1, rotate: 5 }}
-                          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                          onError={(e) => {
-                            ;(e.target as HTMLImageElement).src = "/music-1.jpg"
-                          }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-white font-medium text-sm truncate">{song.title}</h4>
-                          <p className="text-white/70 text-xs truncate">{song.artist}</p>
+                        {/* Song Cover Thumbnail */}
+                        <div className="relative flex-shrink-0">
+                          <motion.img
+                            src={song.cover || "/placeholder.svg"}
+                            alt={song.title}
+                            className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg object-cover shadow-sm"
+                            onError={(e) => {
+                              ;(e.target as HTMLImageElement).src = "/music-1.jpg"
+                            }}
+                          />
+                          {isCurrent && isPlaying && (
+                            <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center">
+                              <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                            </div>
+                          )}
                         </div>
-                        <span className="text-white/70 text-sm font-medium flex-shrink-0">{song.duration}</span>
+
+                        {/* Song Title & Artist */}
+                        <div className="flex-1 min-w-0">
+                          <h4
+                            className={`text-xs sm:text-sm font-semibold truncate ${
+                              isCurrent ? "text-white font-bold" : "text-white/95"
+                            }`}
+                          >
+                            {song.title}
+                          </h4>
+                          <p className="text-[11px] sm:text-xs text-white/70 truncate mt-0.5">
+                            {song.artist}
+                          </p>
+                        </div>
+
+                        {/* Duration */}
+                        <span className="text-white/75 text-xs font-mono font-medium flex-shrink-0 pl-1">
+                          {song.duration}
+                        </span>
                       </motion.div>
                     )
-                  })}
+                  })
+                )}
+              </div>
+
+              {/* Mobile Docked Mini-Player Bar (When viewing playlist on phone) */}
+              <div className="md:hidden mt-2 pt-2 border-t border-white/15 flex-shrink-0">
+                <div
+                  onClick={() => setMobileTab("player")}
+                  className="bg-white/15 backdrop-blur-xl rounded-xl p-2 border border-white/25 flex items-center justify-between gap-2 shadow-lg cursor-pointer"
+                >
+                  <img
+                    src={currentSong?.cover || "/music-1.jpg"}
+                    alt={currentSong?.title || "Cover"}
+                    className="w-9 h-9 rounded-lg object-cover flex-shrink-0"
+                    onError={(e) => {
+                      ;(e.target as HTMLImageElement).src = "/music-1.jpg"
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-white truncate leading-tight">
+                      {currentSong?.title || "No Track"}
+                    </p>
+                    <p className="text-[10px] text-white/70 truncate">
+                      {currentSong?.artist || "Harmonia"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={togglePlay}
+                      className="bg-white text-black p-1.5 rounded-full hover:bg-white/90 shadow-sm cursor-pointer"
+                      aria-label={isPlaying ? "Pause" : "Play"}
+                    >
+                      {isPlaying ? <Pause className="w-3.5 h-3.5 fill-black" /> : <Play className="w-3.5 h-3.5 fill-black ml-0.5" />}
+                    </button>
+                    <button
+                      onClick={playNext}
+                      className="text-white p-1.5 rounded-full hover:bg-white/10 cursor-pointer"
+                      aria-label="Next Track"
+                    >
+                      <SkipForward className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
-
-        {/* Floating Music Bar - bottom left */}
-        <motion.div
-          className="absolute bottom-6 left-8 z-[4] w-[320px] rounded-2xl bg-white/10 backdrop-blur-xl shadow-2xl ring-1 ring-white/20"
-          initial={{ opacity: 0, y: 50, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{
-            type: "spring",
-            stiffness: 100,
-            damping: 15,
-            delay: 0.6,
-          }}
-          whileHover={{ scale: 1.02 }}
-        >
-          <div
-            className="pointer-events-none absolute inset-0 rounded-2xl"
-            style={{
-              background:
-                "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 60%, rgba(255,255,255,0.02) 100%)",
-              boxShadow: "inset 1px 1px 0 rgba(255,255,255,0.35)",
-            }}
-          />
-          <div className="relative z-[1] p-2">
-            <div className="text-white text-xs font-medium text-center mb-2 truncate">
-              {currentSong ? `${currentSong.title} - ${currentSong.artist}` : "Lunch Break - Seedhe Maut"}
-            </div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-white/90 text-xs font-medium">{formattedCurrentTime}</span>
-              <div
-                ref={barProgressRef}
-                className="flex-1 h-1 bg-white/30 rounded-full cursor-pointer relative group"
-                onClick={handleBarProgressClick}
-                onMouseDown={() => setIsDragging(true)}
-                onMouseUp={() => setIsDragging(false)}
-                onMouseMove={handleBarProgressDrag}
-                onMouseLeave={() => setIsDragging(false)}
-              >
-                <div className="h-full bg-white rounded-full transition-all" style={{ width: `${progress}%` }} />
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ left: `${progress}%`, transform: "translate(-50%, -50%)" }}
-                />
-              </div>
-              <span className="text-white/90 text-xs font-medium">{formattedRemainingTime}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <motion.button
-                onClick={() => currentSong && toggleFavorite(currentSong.id)}
-                className="text-white cursor-pointer"
-                whileHover={{ scale: 1.1, rotate: 15 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              >
-                <Star
-                  className={`w-4 h-4 ${
-                    currentSong && favorites.has(currentSong.id)
-                      ? "fill-yellow-400 text-yellow-400"
-                      : ""
-                  }`}
-                />
-              </motion.button>
-              <motion.button
-                onClick={playPrev}
-                className="text-white cursor-pointer"
-                whileHover={{ scale: 1.1, x: -2 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              >
-                <SkipBack className="w-4 h-4" />
-              </motion.button>
-              <motion.button
-                onClick={togglePlay}
-                className="bg-white text-black rounded-full p-1.5 shadow-md cursor-pointer"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              >
-                <motion.div animate={{ rotate: isPlaying ? 360 : 0 }} transition={{ duration: 0.3 }}>
-                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                </motion.div>
-              </motion.button>
-              <motion.button
-                onClick={playNext}
-                className="text-white cursor-pointer"
-                whileHover={{ scale: 1.1, x: 2 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              >
-                <SkipForward className="w-4 h-4" />
-              </motion.button>
-              <motion.button
-                onClick={() => setIsRepeatOne((prev) => !prev)}
-                className={`text-white transition-colors cursor-pointer ${
-                  isRepeatOne ? "text-green-400" : ""
-                }`}
-                whileHover={{ scale: 1.1, rotate: -15 }}
-                whileTap={{ scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
       </motion.div>
     </>
   )
 }
+
