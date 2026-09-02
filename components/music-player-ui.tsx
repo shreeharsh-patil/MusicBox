@@ -16,6 +16,7 @@ import {
   ListMusic,
   Disc3,
   Sparkles,
+  Github,
 } from "lucide-react"
 import { motion } from "motion/react"
 import { searchSongs, getTrendingSongs, formatDuration, type JioSaavnSong } from "@/lib/jiosaavn"
@@ -31,54 +32,72 @@ export interface PlaylistItem {
   raw?: JioSaavnSong
 }
 
-// Initial playlist fallback
+// Indian Trending Categories
+const TREND_CATEGORIES = [
+  { id: "trending", label: "Trending India", emoji: "🔥" },
+  { id: "superhits", label: "Superhits Top 50", emoji: "⚡" },
+  { id: "bollywood", label: "Bollywood Hits", emoji: "🎬" },
+  { id: "romantic", label: "Arijit & Romantic", emoji: "💖" },
+  { id: "punjabi", label: "Punjabi Beats", emoji: "🕺" },
+  { id: "indie", label: "Indian Indie", emoji: "🎸" },
+]
+
+// Authentic initial Indian trending playlist fallback
 const INITIAL_PLAYLIST: PlaylistItem[] = [
   {
     id: "1",
-    title: "Die With a Smile",
-    artist: "Lady Gaga & Bruno Mars",
-    duration: "3:38",
-    cover: "/diewithasmile.jpeg",
-    streamUrl: "",
+    title: "Saathiya",
+    artist: "Darshan Raval",
+    duration: "3:12",
+    cover: "https://c.saavncdn.com/694/Saathiya-Hindi-2026-20260220193432-500x500.jpg",
+    streamUrl: "https://aac.saavncdn.com/694/de6cea5703ff195d00a96e70b9ff7018_320.mp4",
   },
   {
     id: "2",
-    title: "The Fate of Ophelia",
-    artist: "Fall Out Boy",
-    duration: "3:45",
-    cover: "/fateofophelia.jpg",
-    streamUrl: "",
+    title: "Aayi Nai",
+    artist: "Sachin-Jigar, Pawan Singh, Divya Kumar",
+    duration: "2:58",
+    cover: "https://c.saavncdn.com/373/Stree-2-Hindi-2024-20240828083834-500x500.jpg",
+    streamUrl: "https://aac.saavncdn.com/373/9a3ad2173b2e80bc6f9655d1da7c8f27_320.mp4",
   },
   {
     id: "3",
-    title: "Espresso",
-    artist: "Sabrina Carpenter",
-    duration: "2:55",
-    cover: "/espresso.jpeg",
-    streamUrl: "",
+    title: "Balam Pichkari",
+    artist: "Pritam, Vishal Dadlani, Shalmali",
+    duration: "4:49",
+    cover: "https://c.saavncdn.com/440/Yeh-Jawaani-Hai-Deewani-2013-500x500.jpg",
+    streamUrl: "https://aac.saavncdn.com/440/402182e33ef81008a8aecbdd57886c4c_320.mp4",
   },
   {
     id: "4",
-    title: "Beautiful Things",
-    artist: "Benson Boone",
-    duration: "3:18",
-    cover: "/beautifulthings.jpg",
-    streamUrl: "",
+    title: "Gehra Hua",
+    artist: "Arijit Singh, Shashwat Sachdev",
+    duration: "3:40",
+    cover: "https://c.saavncdn.com/475/Dhurandhar-Hindi-2025-20260203083204-500x500.jpg",
+    streamUrl: "https://aac.saavncdn.com/475/87e1f440b8537651a511e6191b72b834_320.mp4",
   },
   {
     id: "5",
-    title: "Loose Controls",
-    artist: "Teddy Swims",
-    duration: "2:42",
-    cover: "/loosecontrols.jpg",
+    title: "Apna Bana Le",
+    artist: "Arijit Singh, Sachin-Jigar",
+    duration: "4:21",
+    cover: "https://c.saavncdn.com/815/Bhediya-Hindi-2023-20230713144807-500x500.jpg",
     streamUrl: "",
   },
   {
     id: "6",
-    title: "Good Luck Babe",
-    artist: "Chappell Roan",
-    duration: "3:25",
-    cover: "/goodluckbabe.jpeg",
+    title: "Soulmate",
+    artist: "Badshah, Arijit Singh",
+    duration: "3:33",
+    cover: "https://c.saavncdn.com/469/Ek-Tha-Raja-Hindi-2024-20240315183818-500x500.jpg",
+    streamUrl: "",
+  },
+  {
+    id: "7",
+    title: "G.O.A.T.",
+    artist: "Diljit Dosanjh",
+    duration: "3:43",
+    cover: "https://c.saavncdn.com/467/G-O-A-T-Punjabi-2020-20200729181156-500x500.jpg",
     streamUrl: "",
   },
 ]
@@ -96,7 +115,9 @@ export default function MusicPlayerUI() {
   const [isRepeatOne, setIsRepeatOne] = useState(false)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
 
-  // Responsive mobile view switcher: "player" | "playlist"
+  // Indian Trend Category & View States
+  const [selectedCategory, setSelectedCategory] = useState("trending")
+  const [isLoadingCategory, setIsLoadingCategory] = useState(false)
   const [mobileTab, setMobileTab] = useState<"player" | "playlist">("player")
 
   // Search state
@@ -223,10 +244,11 @@ export default function MusicPlayerUI() {
     }
   }, [])
 
-  // Load trending songs
-  const loadTrending = useCallback(async () => {
+  // Load trending songs by category in India
+  const loadTrending = useCallback(async (cat = selectedCategory) => {
+    setIsLoadingCategory(true)
     try {
-      const songs = await getTrendingSongs()
+      const songs = await getTrendingSongs(cat)
       if (songs && songs.length > 0) {
         const items: PlaylistItem[] = songs.map((s) => ({
           id: s.id,
@@ -245,12 +267,20 @@ export default function MusicPlayerUI() {
       }
     } catch (err) {
       console.warn("Trending fallback:", err)
+    } finally {
+      setIsLoadingCategory(false)
     }
-  }, [])
+  }, [selectedCategory])
 
   useEffect(() => {
-    loadTrending()
+    loadTrending("trending")
   }, [loadTrending])
+
+  const handleCategorySelect = async (catId: string) => {
+    setSelectedCategory(catId)
+    setSearchQuery("")
+    await loadTrending(catId)
+  }
 
   // Debounced search
   useEffect(() => {
@@ -453,7 +483,7 @@ export default function MusicPlayerUI() {
 
         {/* Main Content Container */}
         <div className="glass-content relative z-[4] p-3.5 sm:p-5 md:p-7 h-full flex flex-col min-h-0">
-          {/* Top Bar: Brand Logo + Search */}
+          {/* Top Bar: Brand Logo + Search + GitHub Link */}
           <div className="flex items-center justify-between gap-2 sm:gap-4 mb-3 sm:mb-4 flex-shrink-0">
             {/* Logo */}
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -465,40 +495,57 @@ export default function MusicPlayerUI() {
               </span>
             </div>
 
-            {/* Search Bar */}
-            <div className="relative flex-1 max-w-[200px] xs:max-w-[240px] sm:max-w-xs md:max-w-xs">
-              <div className="relative flex items-center bg-white/10 hover:bg-white/15 focus-within:bg-white/20 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/20 focus-within:border-white/40 transition-all shadow-inner">
-                <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/70 mr-1.5 sm:mr-2 flex-shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Search songs..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value)
-                    if (e.target.value && mobileTab !== "playlist") {
-                      setMobileTab("playlist")
-                    }
-                  }}
-                  className="bg-transparent text-xs text-white placeholder-white/50 outline-none w-full pr-5"
-                />
-                {isSearching ? (
-                  <Loader2 className="w-3.5 h-3.5 text-white/70 animate-spin absolute right-2.5" />
-                ) : searchQuery ? (
-                  <button
-                    onClick={() => {
-                      setSearchQuery("")
-                      if (trendingPlaylist.length > 0) {
-                        setPlaylist(trendingPlaylist)
-                      } else {
-                        loadTrending()
+            {/* Right Side: Search Bar + GitHub Repo Link */}
+            <div className="flex items-center gap-2 flex-1 justify-end max-w-[240px] xs:max-w-[280px] sm:max-w-sm">
+              {/* Search Bar */}
+              <div className="relative flex-1">
+                <div className="relative flex items-center bg-white/10 hover:bg-white/15 focus-within:bg-white/20 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/20 focus-within:border-white/40 transition-all shadow-inner">
+                  <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/70 mr-1.5 sm:mr-2 flex-shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search songs..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      if (e.target.value && mobileTab !== "playlist") {
+                        setMobileTab("playlist")
                       }
                     }}
-                    className="text-white/60 hover:text-white absolute right-2.5 cursor-pointer p-0.5"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                ) : null}
+                    className="bg-transparent text-xs text-white placeholder-white/50 outline-none w-full pr-5"
+                  />
+                  {isSearching ? (
+                    <Loader2 className="w-3.5 h-3.5 text-white/70 animate-spin absolute right-2.5" />
+                  ) : searchQuery ? (
+                    <button
+                      onClick={() => {
+                        setSearchQuery("")
+                        if (trendingPlaylist.length > 0) {
+                          setPlaylist(trendingPlaylist)
+                        } else {
+                          loadTrending()
+                        }
+                      }}
+                      className="text-white/60 hover:text-white absolute right-2.5 cursor-pointer p-0.5"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  ) : null}
+                </div>
               </div>
+
+              {/* GitHub Link */}
+              <motion.a
+                href="https://github.com/shreeharsh-patil/MusicBox"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 sm:p-2 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md border border-white/20 text-white/80 hover:text-white transition-all shadow-sm flex-shrink-0 flex items-center justify-center cursor-pointer"
+                whileHover={{ scale: 1.1, rotate: 6 }}
+                whileTap={{ scale: 0.92 }}
+                title="View GitHub Repository"
+                aria-label="GitHub Repository"
+              >
+                <Github className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-white" />
+              </motion.a>
             </div>
           </div>
 
@@ -733,10 +780,10 @@ export default function MusicPlayerUI() {
                   <span className="truncate">
                     {searchQuery
                       ? `Search: "${searchQuery}" (${playlist.length})`
-                      : `Trending Charts (${playlist.length})`}
+                      : `${TREND_CATEGORIES.find((c) => c.id === selectedCategory)?.label || "Trending India"} (${playlist.length})`}
                   </span>
                 </div>
-                {searchQuery && (
+                {searchQuery ? (
                   <button
                     onClick={() => {
                       setSearchQuery("")
@@ -746,12 +793,42 @@ export default function MusicPlayerUI() {
                   >
                     Clear Search
                   </button>
+                ) : (
+                  <span className="text-[10px] text-white/60 font-medium hidden sm:inline">
+                    Live JioSaavn Charts
+                  </span>
                 )}
+              </div>
+
+              {/* Quick India Trend Category Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-2 scrollbar-thin flex-shrink-0">
+                {TREND_CATEGORIES.map((cat) => {
+                  const isActive = selectedCategory === cat.id && !searchQuery
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => handleCategorySelect(cat.id)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+                        isActive
+                          ? "bg-white text-black font-bold shadow-md scale-[1.02]"
+                          : "bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border border-white/10"
+                      }`}
+                    >
+                      <span>{cat.emoji}</span>
+                      <span>{cat.label}</span>
+                    </button>
+                  )
+                })}
               </div>
 
               {/* Scrollable Song List */}
               <div className="flex-1 overflow-y-auto pr-1 sm:pr-2 scrollbar-thin space-y-1.5 sm:space-y-2 min-h-0">
-                {playlist.length === 0 ? (
+                {isLoadingCategory ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-white/70 gap-2">
+                    <Loader2 className="w-7 h-7 animate-spin text-white" />
+                    <p className="text-xs font-medium">Fetching trending songs in India...</p>
+                  </div>
+                ) : playlist.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6 text-white/60">
                     <Music2 className="w-10 h-10 mb-2 opacity-50" />
                     <p className="text-sm">No tracks found</p>

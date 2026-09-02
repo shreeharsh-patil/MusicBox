@@ -39,18 +39,19 @@ export async function searchSongs(query: string): Promise<JioSaavnSong[]> {
   }
 }
 
-export async function getTrendingSongs(): Promise<JioSaavnSong[]> {
+export async function getTrendingSongs(category = "trending"): Promise<JioSaavnSong[]> {
   try {
-    const res = await fetch(API_CONFIG.client.trendingUrl)
+    const url = `${API_CONFIG.client.trendingUrl}?category=${encodeURIComponent(category)}`
+    const res = await fetch(url)
     if (res.ok) {
       const data: JioSaavnSong[] = await res.json()
       if (Array.isArray(data) && data.length > 0) {
         return data
       }
     }
-    return await searchSongs("trending hindi")
+    return await searchSongs("trending hindi songs")
   } catch {
-    return await searchSongs("trending hindi")
+    return await searchSongs("trending hindi songs")
   }
 }
 
