@@ -15,7 +15,6 @@ import {
   Loader2,
   ListMusic,
   Disc3,
-  Sparkles,
   Github,
 } from "lucide-react"
 import { motion } from "motion/react"
@@ -775,15 +774,14 @@ export default function MusicPlayerUI() {
             >
               {/* Header / Search results banner */}
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/15 flex-shrink-0">
-                <div className="flex items-center gap-1.5 text-xs text-white/90 font-semibold truncate">
-                  <Sparkles className="w-3.5 h-3.5 text-yellow-300 flex-shrink-0" />
+                <div className="flex items-center text-xs text-white/90 font-semibold truncate">
                   <span className="truncate">
                     {searchQuery
                       ? `Search: "${searchQuery}" (${playlist.length})`
                       : `${TREND_CATEGORIES.find((c) => c.id === selectedCategory)?.label || "Trending India"} (${playlist.length})`}
                   </span>
                 </div>
-                {searchQuery ? (
+                {searchQuery && (
                   <button
                     onClick={() => {
                       setSearchQuery("")
@@ -793,10 +791,6 @@ export default function MusicPlayerUI() {
                   >
                     Clear Search
                   </button>
-                ) : (
-                  <span className="text-[10px] text-white/60 font-medium hidden sm:inline">
-                    Live JioSaavn Charts
-                  </span>
                 )}
               </div>
 
